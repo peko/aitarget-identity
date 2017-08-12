@@ -1,0 +1,26 @@
+{
+  "name": "aitarget-identity",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://peko:ratatosk@github.com/peko/aitarget-identity.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/peko/aitarget-identity/issues"
+  },
+  "homepage": "https://github.com/peko/aitarget-identity#readme",
+  "dependencies": {
+    "express": "^4.15.4",
+    "iced-coffee-script": "^108.0.11",
+    "jade": "^1.11.0",
+    "stylus": "^0.54.5"
+  }
+}
