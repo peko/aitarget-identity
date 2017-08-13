@@ -21,4 +21,4 @@ app.get '/', (req, res)->
   res.render "index"
 
 app.listen 4321, ->
-  console.log "PORT 8000"
+  console.log "PORT 4321"

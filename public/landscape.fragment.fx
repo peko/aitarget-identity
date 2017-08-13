@@ -9,6 +9,9 @@ float rand(vec2 co){
 }
 
 void main(void) {
-    vec4 col = texture(textureSampler, vec2(vPos.z/8.0+0.5, vPos.y/4.0+0.5+rand(vPos.xy)/5.0));
+    vec2 c = vec2(
+        vPos.z/8.0+0.5      +vPos.y/8.0,
+        vPos.x/8.0+0.5-0.001+vPos.y/4.0);
+    vec4 col = texture(textureSampler, c+rand(c)/10.0);
     gl_FragColor = vec4(col);
 }

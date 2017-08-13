@@ -38,13 +38,13 @@ init = ->
                     "direction"]
         })
         landscape_mat.backFaceCulling = false
-        landscape_txt = new BABYLON.Texture("landscape_gradient.png", scene);
+        landscape_txt = new BABYLON.Texture("landscape_2.png", scene);
         landscape_mat.setTexture("textureSampler", landscape_txt);
 
         # normal_mat = new BABYLON.NormalMaterial("normal", scene, false);
         # normal_mat.backFaceCulling = false
 
-
+        
         
         generate_paths  = ->
             h = (x,y,dx=0,dy=0)->
@@ -83,6 +83,80 @@ init = ->
                 for v, j in path
                     paths[i][j].y+= (paths_t[i][j].y-paths[i][j].y)/50.0
             landscape_mesh = BABYLON.Mesh.CreateRibbon(null, paths, null, null, null, null, null, null, landscape_mesh);
+        
+        generate_particles = (img)->
+            particles = new BABYLON.ParticleSystem("particles", 50, scene);
+            particles.particleTexture = new BABYLON.Texture(img, scene);
+            particles.emitter = landscape_mesh
+            particles.minEmitBox = new BABYLON.Vector3(-4, 0,-4)
+            particles.maxEmitBox = new BABYLON.Vector3( 4, 0, 4)
+            # // Colors of all particles
+            particles.color1 = colors.White
+            particles.color2 = colors.Lemon
+            particles.colorDead = colors.Black
+            # // Size of each particle (random between...
+            particles.minSize = 0.05;
+            particles.maxSize = 0.10;
+            # // Life time of each particle (random between...
+            particles.minLifeTime = 0.3;
+            particles.maxLifeTime = 1.5;
+            # // Emission rate
+            particles.emitRate = 10;
+            # // Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
+            # particles.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD
+            # // Set the gravity of all particles
+            particles.gravity = new BABYLON.Vector3(0, -5, 0);
+            # // Direction of each particle after it has been emitted
+            particles.direction1 = new BABYLON.Vector3(0, 5, 0);
+            particles.direction2 = new BABYLON.Vector3(0, 5, 0);
+            # // Angular speed, in radians
+            # particles.minAngularSpeed = 0;
+            # particles.maxAngularSpeed = Math.PI;
+            # // Speed
+            particles.minEmitPower = 0.5;
+            particles.maxEmitPower = 1.0;
+            particles.updateSpeed = 0.005;
+            # // Start the particle system
+            particles.start();
+        
+        generate_particles_scene = (img)->
+            particles = new BABYLON.ParticleSystem("particles", 50, scene);
+            particles.particleTexture = new BABYLON.Texture(img, scene);
+            particles.emitter = landscape_mesh
+            particles.minEmitBox = new BABYLON.Vector3(-8,-4,-8)
+            particles.maxEmitBox = new BABYLON.Vector3( 8, 4, 8)
+            # // Colors of all particles
+            particles.color1 = colors.White
+            particles.color2 = colors.Lemon
+            particles.colorDead = colors.Black
+            # // Size of each particle (random between...
+            particles.minSize = 0.1
+            particles.maxSize = 0.5
+            # // Life time of each particle (random between...
+            particles.minLifeTime = 1.0;
+            particles.maxLifeTime = 2.5;
+            # // Emission rate
+            particles.emitRate = 10;
+            # // Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
+            # particles.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD
+            # // Set the gravity of all particles
+            particles.gravity = new BABYLON.Vector3(0, -1, 0);
+            # // Direction of each particle after it has been emitted
+            particles.direction1 = new BABYLON.Vector3(0, 1, 0);
+            particles.direction2 = new BABYLON.Vector3(0, 1, 0);
+            # // Angular speed, in radians
+            # particles.minAngularSpeed = 0;
+            # particles.maxAngularSpeed = Math.PI;
+            # // Speed
+            particles.minEmitPower = 0.5;
+            particles.maxEmitPower = 1.0;
+            particles.updateSpeed = 0.005;
+            # // Start the particle system
+            particles.start();
+
+        generate_particles "x.png"
+        generate_particles "box.png"
+        generate_particles_scene "plus.png"
         
         scene
 
