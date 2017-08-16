@@ -30,6 +30,8 @@ cfg =
         glyphs:
             seed:   0
             count: 20
+            min  : 0.5
+            max  : 1.5
 
     landscape:
         "seed"      : 0
@@ -47,6 +49,8 @@ cfg =
         glyphs:
             seed :  0
             count: 50
+            min  : 0.5
+            max  : 1.5
 
     logo: 
         "color"  : "White" 
@@ -210,7 +214,7 @@ ngon = (ctx, x, y, r, n)->
 generate_glyphs_txt = (scene, size)->
     console.log scene
     sides = [0, 1, 3, 4, 6, 32]
-    txt = new BABYLON.DynamicTexture("glyphs texture", size*8, scene, true, BABYLON.Texture.BILINEAR_SAMPLINGMODE)
+    txt = new BABYLON.DynamicTexture("glyphs texture", size*8, scene, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE)
     # txt.hasAlpha = true
     ctx = txt.getContext()
     s2 = size/2.0
@@ -292,16 +296,16 @@ generate_glyphs = (scene, parent, count)->
         glyph.updateVerticesData(BABYLON.VertexBuffer.UVKind, uvs)
         root.glyphs.push glyph
         
-    root.update_glyphs_pos = (seed, count)->
-        Math.seedrandom seed
+    root.update_glyphs_pos = (cfg)->
+        Math.seedrandom cfg.seed
         for glyph, i in root.glyphs
-            s = 0.5+Math.random()*1.5
+            s = cfg.min+Math.random()*(cfg.max-cfg.min)
             glyph.scaling.x = s
             glyph.scaling.y = s
             glyph.position.x = (Math.random()-0.5)*8.0
             glyph.position.y = Math.random()*1.0
             glyph.position.z = (Math.random()-0.5)*8.0
-            glyph.isVisible = i < count
+            glyph.isVisible = i < cfg.count
     
     root
 
@@ -327,13 +331,14 @@ init = ->
     scene_glyphs = generate_glyphs scene, null, 10
     scene_glyphs.rotation.x = Math.PI / 2
     scene_glyphs.position.z = -2.0
-    scene_glyphs.update_glyphs_pos cfg.scene.glyphs.seed, cfg.scene.glyphs.count
+    sg = cfg.scene.glyphs
+    scene_glyphs.update_glyphs_pos sg
     scene_glyphs.scaling.x = 4.0
     s = f.addFolder "glyphs"
-    s.add(cfg.scene.glyphs, "seed" , 0, 1000, 1).onChange (val)->
-        scene_glyphs.update_glyphs_pos cfg.scene.glyphs.seed, cfg.scene.glyphs.count
-    s.add(cfg.scene.glyphs, "count", 0,  100, 1).onChange (val)->
-        scene_glyphs.update_glyphs_pos cfg.scene.glyphs.seed, cfg.scene.glyphs.count
+    s.add(sg, "seed" , 0, 1000,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sg
+    s.add(sg, "count", 0,  100,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sg
+    s.add(sg, "min", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sg
+    s.add(sg, "max", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sg
     
 
     # LANDSCAPE
@@ -361,15 +366,15 @@ init = ->
     f.add(cfg.landscape, "z"     ,   -4, 4, 0.01             ).onChange (val)-> update_landscape()
     f.add(cfg.landscape, "scale" , 0.25, 4, 0.01             ).onChange (val)-> update_landscape()
    
-    # GLYPHS
-    landscape_glyphs = generate_glyphs scene, landscape, cfg.landscape.glyphs.count
-    landscape_glyphs.update_glyphs_pos cfg.landscape.glyphs.seed, cfg.landscape.glyphs.count
-   
+    # LANDSCAPE GLYPHS
+    landscape_glyphs = generate_glyphs scene, landscape, cfg.landscape.glyphs.count   
     s = f.addFolder "glyphs"
-    s.add(cfg.landscape.glyphs, "seed" , 0, 1000).onChange (val)->
-        landscape_glyphs.update_glyphs_pos cfg.landscape.glyphs.seed, cfg.landscape.glyphs.count
-    s.add(cfg.landscape.glyphs, "count", 0, 100, 1).onChange (val)->
-        landscape_glyphs.update_glyphs_pos cfg.landscape.glyphs.seed, cfg.landscape.glyphs.count
+    lg = cfg.landscape.glyphs
+    landscape_glyphs.update_glyphs_pos lg
+    s.add(lg, "seed" , 0, 1000, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lg
+    s.add(lg, "count", 0,  100, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lg
+    s.add(lg, "min", 0.1, 3.0, 0.01).onChange (val)->landscape_glyphs.update_glyphs_pos lg
+    s.add(lg, "max", 0.1, 3.0, 0.01).onChange (val)->landscape_glyphs.update_glyphs_pos lg
 
     # LOGO
     
