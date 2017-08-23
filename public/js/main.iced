@@ -32,6 +32,10 @@ cfg =
             count: 20
             min  : 0.5
             max  : 1.5
+        title:
+            text:"AUTOMATE YOUR SUCCESS"
+            x:   1.5
+            y:   0.0
 
     landscape:
         "seed"      : 0
@@ -59,7 +63,8 @@ cfg =
         "padding": 0
     
 
-create_landscape = (scene)-> 
+create_landscape = (scene)->
+    
     landscape_shader = 
         attributes: [
             "position"
@@ -203,7 +208,8 @@ generate_particles_scene = (scene, landscape, img)->
     particles.start();
 
 
-
+# draw ngon
+# context, center, radius, corners
 ngon = (ctx, x, y, r, n)->
     ctx.beginPath x+r, y
     for i in [0..n]
@@ -212,7 +218,6 @@ ngon = (ctx, x, y, r, n)->
     ctx.closePath()
 
 generate_glyphs_txt = (scene, size)->
-    console.log scene
     sides = [0, 1, 3, 4, 6, 32]
     txt = new BABYLON.DynamicTexture("glyphs texture", size*8, scene, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE)
     # txt.hasAlpha = true
@@ -273,11 +278,11 @@ generate_glyphs = (scene, parent, count)->
     
     # $("body").prepend glyphs_txt.getContext().canvas
     root.glyphs = []
+    params = 
+        width: 0.25 
+        height:0.25
+        updatable: true
     for i in [0...100]
-        params = 
-            width: 0.25 
-            height:0.25
-            updatable: true
 
         glyph = new BABYLON.MeshBuilder.CreatePlane "glyph", params, scene
         glyph.isVisible = false if i > count
@@ -294,6 +299,7 @@ generate_glyphs = (scene, parent, count)->
             uvs[i+0] = du + uvs[i+0]*step
             uvs[i+1] = dv + uvs[i+1]*step
         glyph.updateVerticesData(BABYLON.VertexBuffer.UVKind, uvs)
+        glyph.renderingGroupId = 3
         root.glyphs.push glyph
         
     root.update_glyphs_pos = (cfg)->
@@ -308,6 +314,49 @@ generate_glyphs = (scene, parent, count)->
             glyph.isVisible = i < cfg.count
     
     root
+
+# Title
+generate_title = (scene, camera)->
+    
+    # подготавливаем текстуру
+    txt = new BABYLON.DynamicTexture("title texture", 2048, scene, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE)
+    txt.hasAlpha = true
+    
+
+    mat = new BABYLON.StandardMaterial "material", scene, true
+    # mat.diffuseTexture  = txt
+    mat.opacityTexture  = txt
+    mat.emissiveTexture = txt
+    mat.alphaMode = BABYLON.Engine.ALPHA_ADD
+    
+    root = new BABYLON.MeshBuilder.CreateBox "title root", 0.1
+    root.isVisible = false
+    
+    params =
+        width: 5.0
+        height:5.0
+        updatable: true
+    root.position.z = -5.0
+    title = new BABYLON.MeshBuilder.CreatePlane "title", params, scene
+    title.material = mat
+    title.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL
+    title.parent = root
+    title.alphaIndex = 0
+    title.renderingGroupId = 2
+
+    root.update = (text)->
+        ctx = txt.getContext()
+        ctx.clearRect 0, 0, 2048, 2048
+        ctx.fillStyle    = '#fff'
+        ctx.textBaseline = 'top'
+        size = 240
+        ctx.font = "900 #{size}px Roboto"
+        for t, i in text.split " " 
+           ctx.fillText t, 0, i*size
+        txt.update()
+    root
+
+# START
 
 init = ->
 
@@ -340,6 +389,16 @@ init = ->
     s.add(sg, "min", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sg
     s.add(sg, "max", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sg
     
+    # SCENE TEXT
+
+    scene_title = generate_title scene
+    scene_title.position.x = 1.5
+    s = f.addFolder "title"
+    st = cfg.scene.title
+    scene_title.update st.text
+    s.add(st, "x", -4.0, 4.0, 0.1).onChange (val)->scene_title.position.x = val
+    s.add(st, "y", -4.0, 4.0, 0.1).onChange (val)->scene_title.position.y = val
+    s.add(st, "text").onChange (txt)->scene_title.update txt
 
     # LANDSCAPE
 
@@ -367,6 +426,7 @@ init = ->
     f.add(cfg.landscape, "scale" , 0.25, 4, 0.01             ).onChange (val)-> update_landscape()
    
     # LANDSCAPE GLYPHS
+
     landscape_glyphs = generate_glyphs scene, landscape, cfg.landscape.glyphs.count   
     s = f.addFolder "glyphs"
     lg = cfg.landscape.glyphs
@@ -398,10 +458,8 @@ init = ->
     f.add(cfg.logo, "color"  , color_names).onChange (val)-> logo.source = "logo_#{val}.png"
     f.add(cfg.logo, "h align", ["left", "center",  "right"]).onChange (val)->logo.horizontalAlignment = h_aligns[val]
     f.add(cfg.logo, "v align", ["top" , "center", "bottom"]).onChange (val)->logo.verticalAlignment   = v_aligns[val]
+
     
-
-        
-
     # FINISH
     engine.runRenderLoop -> do scene.render
     window.addEventListener 'resize', -> do engine.resize
@@ -409,4 +467,7 @@ init = ->
 
 $ ->
     console.log "START"
-    do init
+    WebFont.load 
+      google:
+          families: ['Roboto', 'Roboto:900']
+      active: init
