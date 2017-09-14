@@ -25,9 +25,8 @@ colors =
 
 #  STARTUP CONFIG
 cfg = 
-    
+    scale: 1
     background: true
-    
     scene:    
         "background": true
         "background color": "Digi_Violet"
@@ -77,6 +76,7 @@ cfg =
 
 # globals
 canvas = engine = scene = camera = gui = undefined 
+dirty = true
 
 create_landscape = (scene)->
     
@@ -146,7 +146,8 @@ create_landscape = (scene)->
     landscape.rebuild = (seed)->
         paths = generate_paths seed
         BABYLON.Mesh.CreateRibbon(null, paths, null, null, null, null, null, null, landscape);
-    
+        dirty = true
+
     landscape.parent = BABYLON.Mesh.CreateBox "landscape parent", 4.0, scene 
     landscape.parent.isVisible = false
 
@@ -327,10 +328,12 @@ generate_glyphs = (scene, parent, count)->
             glyph.position.y = Math.random()*1.0
             glyph.position.z = (Math.random()-0.5)*8.0
             glyph.isVisible = i < cfg.count
+        dirty = true
      
     root.visibility = (cfg, value)->
         for glyph, i in root.glyphs
             glyph.isVisible = value if i<cfg.count
+        dirty = true
 
     root
 
@@ -373,6 +376,8 @@ generate_title = (scene, camera)->
         for t, i in text.split " " 
            ctx.fillText t, 0, i*size
         txt.update()
+        dirty = true
+
     root
 
 render_png = (render)->
@@ -399,32 +404,36 @@ init = ->
     # camera.attachControl canvas, false
 
     init_gui()
-
-    # FINISH
-    engine.runRenderLoop -> scene.render()
+    
+    engine.runRenderLoop -> 
+        if dirty
+            console.log "render"
+            scene.render() 
+        dirty = false
     # window.addEventListener 'resize', -> do engine.resize()
-
 
 init_gui = ->
 
-    gui = new dat.GUI
-    gui.add(cfg.scene, "background").onChange (show)->
-        console.log show
-        scene.clearColor = if show then colors[cfg.scene["background color"]] else new BABYLON.Color4(0,0,0,0.00000000001);
 
-    gui.add(cfg.scene, "background color", color_names).onFinishChange (name)->scene.clearColor = colors[name]
+    gui = new dat.GUI
+    gui.add(cfg, "scale", 0.1, 2.0).onFinishChange (val)->engine.setHardwareScalingLevel 1.0/val; dirty = true
+    gui.add(cfg.scene, "background").onChange (val)->
+        scene.clearColor = if val then colors[cfg.scene["background color"]] else new BABYLON.Color4(0,0,0,0.00000000001);
+        dirty = true
+
+    gui.add(cfg.scene, "background color", color_names).onFinishChange (name)->scene.clearColor = colors[name]; dirty = true
         
 
     # TITLE
 
     title = generate_title scene
     title.position.x = 1.5
-    gui.add(cfg, "title").onChange (val)->title.title.isVisible = val 
+    gui.add(cfg, "title").onChange (val)->title.title.isVisible = val; dirty = true
     f = gui.addFolder "title settings"
     ts = cfg.title_settings
     title.update ts.text
-    f.add(ts, "x", -4.0, 4.0, 0.1).onChange (val)->title.position.x = val
-    f.add(ts, "y", -4.0, 4.0, 0.1).onChange (val)->title.position.y = val
+    f.add(ts, "x", -4.0, 4.0, 0.1).onChange (val)->title.position.x = val; dirty = true
+    f.add(ts, "y", -4.0, 4.0, 0.1).onChange (val)->title.position.y = val; dirty = true
     f.add(ts, "text").onChange (txt)->title.update txt
 
 
@@ -442,8 +451,8 @@ init_gui = ->
         landscape.parent.scaling.x  = landscape.parent.scaling.y = landscape.parent.scaling.z = cfg.landscape_settings["scale"]
 
     update_landscape()
-    gui.add(cfg, "landscape").onChange (val)->landscape.isVisible = val
-    f = gui.addFolder "landscape"
+    gui.add(cfg, "landscape").onChange (val)->landscape.isVisible = val; dirty = true
+    f = gui.addFolder "landscape settings"
     ls = cfg.landscape_settings
     f.add(ls, "seed"      , 0       , 10000       ).onChange (val)-> landscape.rebuild val
     f.add(ls, "height", 0.01, 4, 0.01             ).onChange (val)-> update_landscape()
@@ -460,7 +469,7 @@ init_gui = ->
     landscape_glyphs = generate_glyphs scene, landscape, cfg.landscape_glyph_settings.count   
     lgs = cfg.landscape_glyph_settings
     landscape_glyphs.update_glyphs_pos lgs
-    gui.add(cfg, "landscape glyphs").onChange (val)->landscape_glyphs.visibility lgs, val
+    gui.add(cfg, "landscape glyphs").onChange (val)->landscape_glyphs.visibility lgs, val; dirty = true
     f = gui.addFolder "landscape glyph settings"
     f.add(lgs, "seed" , 0, 1000, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
     f.add(lgs, "count", 0,  100, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
@@ -476,13 +485,14 @@ init_gui = ->
     sgs = cfg.scene_glyph_settings
     scene_glyphs.update_glyphs_pos sgs
     scene_glyphs.scaling.x = 4.0
-    gui.add(cfg, "scene glyphs").onChange (val)->scene_glyphs.visibility sgs, val
+    gui.add(cfg, "scene glyphs").onChange (val)->scene_glyphs.visibility sgs, val; dirty = true
     f = gui.addFolder "scene glyph settings"
     f.add(sgs, "seed" , 0, 1000,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
     f.add(sgs, "count", 0,  100,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
     f.add(sgs, "min", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
     f.add(sgs, "max", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
     
+
     # LOGO
     
     h_aligns = 
@@ -501,7 +511,7 @@ init_gui = ->
     logo.autoScale = true
     logo.horizontalAlignment = h_aligns[cfg.logo_settings["h align"]]
     logo.verticalAlignment   = v_aligns[cfg.logo_settings["v align"]]
-    gui.add(cfg, "logo").onChange (val)->logo.isVisible = val
+    gui.add(cfg, "logo").onChange (val)->logo.isVisible = val; dirty = true
     f = gui.addFolder "logo settings"
     f.add(cfg.logo_settings, "color"  , color_names).onChange (val)-> logo.source = "logo_#{val}.png"
     f.add(cfg.logo_settings, "h align", ["left", "center",  "right"]).onChange (val)->logo.horizontalAlignment = h_aligns[val]
