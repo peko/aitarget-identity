@@ -25,19 +25,15 @@ colors =
 
 #  STARTUP CONFIG
 cfg = 
-    scene:
-        background: "Digi_Violet"
-        glyphs:
-            seed:   0
-            count: 20
-            min  : 0.5
-            max  : 1.5
-        title:
-            text:"AUTOMATE YOUR SUCCESS"
-            x:   1.5
-            y:   0.0
+    
+    background: true
+    
+    scene:    
+        "background": true
+        "background color": "Digi_Violet"
 
-    landscape:
+    landscape:true
+    landscape_settings:
         "seed"      : 0
         "rotation y": 2.15
         "rotation x":-0.33
@@ -50,18 +46,37 @@ cfg =
         
         "width" : 1.0
         "height": 1.0
-        glyphs:
-            seed :  0
-            count: 50
-            min  : 0.5
-            max  : 1.5
 
-    logo: 
+    "landscape glyphs": true
+    landscape_glyph_settings:
+        seed :  0
+        count: 50
+        min  : 0.5
+        max  : 1.5
+    
+    "scene glyphs": true
+    scene_glyph_settings:
+        seed:   0
+        count: 20
+        min  : 0.5
+        max  : 1.5
+
+    title: true
+    title_settings:
+        text:"AUTOMATE YOUR SUCCESS"
+        x:   1.5
+        y:   0.0
+
+    
+    logo: true
+    logo_settings: 
         "color"  : "White" 
         "h align": "left"
         "v align": "top"
         "padding": 0
-    
+
+# globals
+canvas = engine = scene = camera = gui = undefined 
 
 create_landscape = (scene)->
     
@@ -312,7 +327,11 @@ generate_glyphs = (scene, parent, count)->
             glyph.position.y = Math.random()*1.0
             glyph.position.z = (Math.random()-0.5)*8.0
             glyph.isVisible = i < cfg.count
-    
+     
+    root.visibility = (cfg, value)->
+        for glyph, i in root.glyphs
+            glyph.isVisible = value if i<cfg.count
+
     root
 
 # Title
@@ -337,7 +356,7 @@ generate_title = (scene, camera)->
         height:5.0
         updatable: true
     root.position.z = -5.0
-    title = new BABYLON.MeshBuilder.CreatePlane "title", params, scene
+    root.title = title = new BABYLON.MeshBuilder.CreatePlane "title", params, scene
     title.material = mat
     title.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL
     title.parent = root
@@ -356,23 +375,97 @@ generate_title = (scene, camera)->
         txt.update()
     root
 
+render_png = (render)->
+    on_success = (data)->
+        console.log "Render complete, image size: #{data.length}"
+        download data, "render.png", "image/png"
+    # BABYLON.Tools.DumpFramebuffer(render.width, render.width, engine, on_success,"image/png")
+    # BABYLON.Tools.CreateScreenshot(engine, camera, {width:render.width}, on_success, "image/jpeg")
+    BABYLON.Tools.CreateScreenshotUsingRenderTarget(engine, camera, {wdith: render.width, height: render.width}, on_success, 1)
+
+
 # START
 
 init = ->
 
     canvas = $('#canvas')[0]
-    engine = new BABYLON.Engine canvas, true
+    engine = new BABYLON.Engine canvas, true, {preserveDrawingBuffer: true}
 
     scene = new BABYLON.Scene engine
-    scene.clearColor = colors[cfg.scene.background]
+    scene.clearColor = colors[cfg.scene["background color"]]
 
     camera = new BABYLON.ArcRotateCamera("ArcRotateCamera", -Math.PI/2.0, Math.PI/2.5, 10, new BABYLON.Vector3(0, 0, 0), scene);
     camera.setTarget BABYLON.Vector3.Zero()
     # camera.attachControl canvas, false
 
+    init_gui()
+
+    # FINISH
+    engine.runRenderLoop -> scene.render()
+    # window.addEventListener 'resize', -> do engine.resize()
+
+
+init_gui = ->
+
     gui = new dat.GUI
-    f = gui.addFolder "scene"
-    f.add(cfg.scene, "background", color_names).onFinishChange (name)->scene.clearColor = colors[name]
+    gui.add(cfg.scene, "background").onChange (show)->
+        console.log show
+        scene.clearColor = if show then colors[cfg.scene["background color"]] else new BABYLON.Color4(0,0,0,0.00000000001);
+
+    gui.add(cfg.scene, "background color", color_names).onFinishChange (name)->scene.clearColor = colors[name]
+        
+
+    # TITLE
+
+    title = generate_title scene
+    title.position.x = 1.5
+    gui.add(cfg, "title").onChange (val)->title.title.isVisible = val 
+    f = gui.addFolder "title settings"
+    ts = cfg.title_settings
+    title.update ts.text
+    f.add(ts, "x", -4.0, 4.0, 0.1).onChange (val)->title.position.x = val
+    f.add(ts, "y", -4.0, 4.0, 0.1).onChange (val)->title.position.y = val
+    f.add(ts, "text").onChange (txt)->title.update txt
+
+
+    # LANDSCAPE
+
+    landscape = create_landscape scene
+    update_landscape = ->
+        landscape.rotation.y = cfg.landscape_settings["rotation y"]
+        landscape.scaling.y  = cfg.landscape_settings["height"]
+        
+        landscape.parent.rotation.x = cfg.landscape_settings["rotation x"]
+        landscape.parent.position.x = cfg.landscape_settings["x"]
+        landscape.parent.position.y = cfg.landscape_settings["y"]
+        landscape.parent.position.z = cfg.landscape_settings["z"]
+        landscape.parent.scaling.x  = landscape.parent.scaling.y = landscape.parent.scaling.z = cfg.landscape_settings["scale"]
+
+    update_landscape()
+    gui.add(cfg, "landscape").onChange (val)->landscape.isVisible = val
+    f = gui.addFolder "landscape"
+    ls = cfg.landscape_settings
+    f.add(ls, "seed"      , 0       , 10000       ).onChange (val)-> landscape.rebuild val
+    f.add(ls, "height", 0.01, 4, 0.01             ).onChange (val)-> update_landscape()
+    f.add(ls, "rotation y", -Math.PI, Math.PI,0.01).onChange (val)-> update_landscape()
+    f.add(ls, "rotation x", -Math.PI, Math.PI,0.01).onChange (val)-> update_landscape()
+    f.add(ls, "x"     ,   -4, 4, 0.01             ).onChange (val)-> update_landscape()
+    f.add(ls, "y"     ,   -4, 4, 0.01             ).onChange (val)-> update_landscape()
+    f.add(ls, "z"     ,   -4, 4, 0.01             ).onChange (val)-> update_landscape()
+    f.add(ls, "scale" , 0.25, 4, 0.01             ).onChange (val)-> update_landscape()
+   
+
+    # LANDSCAPE GLYPHS
+
+    landscape_glyphs = generate_glyphs scene, landscape, cfg.landscape_glyph_settings.count   
+    lgs = cfg.landscape_glyph_settings
+    landscape_glyphs.update_glyphs_pos lgs
+    gui.add(cfg, "landscape glyphs").onChange (val)->landscape_glyphs.visibility lgs, val
+    f = gui.addFolder "landscape glyph settings"
+    f.add(lgs, "seed" , 0, 1000, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
+    f.add(lgs, "count", 0,  100, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
+    f.add(lgs, "min", 0.1, 3.0, 0.01).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
+    f.add(lgs, "max", 0.1, 3.0, 0.01).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
 
 
     # SCENE GLYPH
@@ -380,62 +473,16 @@ init = ->
     scene_glyphs = generate_glyphs scene, null, 10
     scene_glyphs.rotation.x = Math.PI / 2
     scene_glyphs.position.z = -2.0
-    sg = cfg.scene.glyphs
-    scene_glyphs.update_glyphs_pos sg
+    sgs = cfg.scene_glyph_settings
+    scene_glyphs.update_glyphs_pos sgs
     scene_glyphs.scaling.x = 4.0
-    s = f.addFolder "glyphs"
-    s.add(sg, "seed" , 0, 1000,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sg
-    s.add(sg, "count", 0,  100,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sg
-    s.add(sg, "min", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sg
-    s.add(sg, "max", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sg
+    gui.add(cfg, "scene glyphs").onChange (val)->scene_glyphs.visibility sgs, val
+    f = gui.addFolder "scene glyph settings"
+    f.add(sgs, "seed" , 0, 1000,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
+    f.add(sgs, "count", 0,  100,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
+    f.add(sgs, "min", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
+    f.add(sgs, "max", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
     
-    # SCENE TEXT
-
-    scene_title = generate_title scene
-    scene_title.position.x = 1.5
-    s = f.addFolder "title"
-    st = cfg.scene.title
-    scene_title.update st.text
-    s.add(st, "x", -4.0, 4.0, 0.1).onChange (val)->scene_title.position.x = val
-    s.add(st, "y", -4.0, 4.0, 0.1).onChange (val)->scene_title.position.y = val
-    s.add(st, "text").onChange (txt)->scene_title.update txt
-
-    # LANDSCAPE
-
-    landscape = create_landscape scene
-    update_landscape = ->
-        landscape.rotation.y = cfg.landscape["rotation y"]
-        landscape.scaling.y  = cfg.landscape["height"]
-        
-        landscape.parent.rotation.x = cfg.landscape["rotation x"]
-        landscape.parent.position.x = cfg.landscape["x"]
-        landscape.parent.position.y = cfg.landscape["y"]
-        landscape.parent.position.z = cfg.landscape["z"]
-        landscape.parent.scaling.x  = landscape.parent.scaling.y = landscape.parent.scaling.z = cfg.landscape["scale"]
-
-    update_landscape()
-
-    f = gui.addFolder "landscape"
-    f.add(cfg.landscape, "seed"      , 0       , 10000       ).onChange (val)-> landscape.rebuild val
-    f.add(cfg.landscape, "height", 0.01, 4, 0.01             ).onChange (val)-> update_landscape()
-    f.add(cfg.landscape, "rotation y", -Math.PI, Math.PI,0.01).onChange (val)-> update_landscape()
-    f.add(cfg.landscape, "rotation x", -Math.PI, Math.PI,0.01).onChange (val)-> update_landscape()
-    f.add(cfg.landscape, "x"     ,   -4, 4, 0.01             ).onChange (val)-> update_landscape()
-    f.add(cfg.landscape, "y"     ,   -4, 4, 0.01             ).onChange (val)-> update_landscape()
-    f.add(cfg.landscape, "z"     ,   -4, 4, 0.01             ).onChange (val)-> update_landscape()
-    f.add(cfg.landscape, "scale" , 0.25, 4, 0.01             ).onChange (val)-> update_landscape()
-   
-    # LANDSCAPE GLYPHS
-
-    landscape_glyphs = generate_glyphs scene, landscape, cfg.landscape.glyphs.count   
-    s = f.addFolder "glyphs"
-    lg = cfg.landscape.glyphs
-    landscape_glyphs.update_glyphs_pos lg
-    s.add(lg, "seed" , 0, 1000, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lg
-    s.add(lg, "count", 0,  100, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lg
-    s.add(lg, "min", 0.1, 3.0, 0.01).onChange (val)->landscape_glyphs.update_glyphs_pos lg
-    s.add(lg, "max", 0.1, 3.0, 0.01).onChange (val)->landscape_glyphs.update_glyphs_pos lg
-
     # LOGO
     
     h_aligns = 
@@ -449,20 +496,16 @@ init = ->
         bottom: BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM
         
     advanced_txt = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
-    logo = new BABYLON.GUI.Image "logo", "logo_#{cfg.logo.color}.png"
+    logo = new BABYLON.GUI.Image "logo", "logo_#{cfg.logo_settings.color}.png"
     advanced_txt.addControl logo
     logo.autoScale = true
-    logo.horizontalAlignment = h_aligns[cfg.logo["h align"]]
-    logo.verticalAlignment   = v_aligns[cfg.logo["v align"]]
-    f = gui.addFolder "logo"
-    f.add(cfg.logo, "color"  , color_names).onChange (val)-> logo.source = "logo_#{val}.png"
-    f.add(cfg.logo, "h align", ["left", "center",  "right"]).onChange (val)->logo.horizontalAlignment = h_aligns[val]
-    f.add(cfg.logo, "v align", ["top" , "center", "bottom"]).onChange (val)->logo.verticalAlignment   = v_aligns[val]
-
-    
-    # FINISH
-    engine.runRenderLoop -> do scene.render
-    window.addEventListener 'resize', -> do engine.resize
+    logo.horizontalAlignment = h_aligns[cfg.logo_settings["h align"]]
+    logo.verticalAlignment   = v_aligns[cfg.logo_settings["v align"]]
+    gui.add(cfg, "logo").onChange (val)->logo.isVisible = val
+    f = gui.addFolder "logo settings"
+    f.add(cfg.logo_settings, "color"  , color_names).onChange (val)-> logo.source = "logo_#{val}.png"
+    f.add(cfg.logo_settings, "h align", ["left", "center",  "right"]).onChange (val)->logo.horizontalAlignment = h_aligns[val]
+    f.add(cfg.logo_settings, "v align", ["top" , "center", "bottom"]).onChange (val)->logo.verticalAlignment   = v_aligns[val]
 
 
 $ ->
