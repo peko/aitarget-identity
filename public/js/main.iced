@@ -110,7 +110,7 @@ create_landscape = (scene)->
             Math.cos(s)/(1+s)
         rnd = ->Math.random()-Math.random()
 
-        step = 0.1
+        step = 0.02
         dx1 = rnd()*4.0
         dy1 = rnd()*4.0
         dx2 = rnd()*4.0
@@ -410,7 +410,7 @@ init = ->
             console.log "render"
             scene.render() 
         dirty = false
-    window.addEventListener 'resize', -> engine.resize()
+    window.addEventListener 'resize', -> engine.resize(); dirty = true
     setInterval (=>dirty = true), 2000
 
 init_gui = ->
@@ -450,6 +450,7 @@ init_gui = ->
         landscape.parent.position.y = cfg.landscape_settings["y"]
         landscape.parent.position.z = cfg.landscape_settings["z"]
         landscape.parent.scaling.x  = landscape.parent.scaling.y = landscape.parent.scaling.z = cfg.landscape_settings["scale"]
+        dirty = true
 
     update_landscape()
     gui.add(cfg, "landscape").onChange (val)->landscape.isVisible = val; dirty = true
