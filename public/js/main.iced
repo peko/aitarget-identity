@@ -23,7 +23,9 @@ colors =
     Rose         : new BABYLON.Color3(0xFF/255.0, 0xA9/255.0, 0xBE/255.0) # "#FFA9BE"
     Graphite     : new BABYLON.Color3(0x1C/255.0, 0x1B/255.0, 0x21/255.0) # "#1C1B21"
 
+
 #  STARTUP CONFIG
+
 cfg = 
     scale: 1
     background: true
@@ -73,6 +75,8 @@ cfg =
         "h align": "left"
         "v align": "top"
         "padding": 0
+
+MAX_GLYPHS = 300
 
 # globals
 canvas = engine = scene = camera = gui = undefined 
@@ -298,7 +302,7 @@ generate_glyphs = (scene, parent, count)->
         width: 0.25 
         height:0.25
         updatable: true
-    for i in [0...100]
+    for i in [0...MAX_GLYPHS]
 
         glyph = new BABYLON.MeshBuilder.CreatePlane "glyph", params, scene
         glyph.isVisible = false if i > count
@@ -474,7 +478,7 @@ init_gui = ->
     gui.add(cfg, "landscape glyphs").onChange (val)->landscape_glyphs.visibility lgs, val; dirty = true
     f = gui.addFolder "landscape glyph settings"
     f.add(lgs, "seed" , 0, 1000, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
-    f.add(lgs, "count", 0,  100, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
+    f.add(lgs, "count", 0,  MAX_GLYPHS, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
     f.add(lgs, "min", 0.1, 3.0, 0.01).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
     f.add(lgs, "max", 0.1, 3.0, 0.01).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
 
@@ -490,7 +494,7 @@ init_gui = ->
     gui.add(cfg, "scene glyphs").onChange (val)->scene_glyphs.visibility sgs, val; dirty = true
     f = gui.addFolder "scene glyph settings"
     f.add(sgs, "seed" , 0, 1000,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
-    f.add(sgs, "count", 0,  100,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
+    f.add(sgs, "count", 0,  MAX_GLYPHS,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
     f.add(sgs, "min", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
     f.add(sgs, "max", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
     
