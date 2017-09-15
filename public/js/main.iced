@@ -411,12 +411,13 @@ init = ->
             scene.render() 
         dirty = false
     # window.addEventListener 'resize', -> do engine.resize()
+    setInterval (=>dirty = true), 2000
 
 init_gui = ->
 
 
     gui = new dat.GUI
-    gui.add(cfg, "scale", 0.1, 2.0).onFinishChange (val)->engine.setHardwareScalingLevel 1.0/val; dirty = true
+    gui.add(cfg, "scale", 0.1, 3.0).onFinishChange (val)->engine.setHardwareScalingLevel 1.0/val; dirty = true
     gui.add(cfg.scene, "background").onChange (val)->
         scene.clearColor = if val then colors[cfg.scene["background color"]] else new BABYLON.Color4(0,0,0,0.00000000001);
         dirty = true
