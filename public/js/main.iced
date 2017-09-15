@@ -410,7 +410,7 @@ init = ->
             console.log "render"
             scene.render() 
         dirty = false
-    window.addEventListener 'resize', -> do engine.resize()
+    window.addEventListener 'resize', -> engine.resize()
     setInterval (=>dirty = true), 2000
 
 init_gui = ->
