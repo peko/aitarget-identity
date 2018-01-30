@@ -23,12 +23,21 @@ colors =
     Rose         : new BABYLON.Color3(0xFF/255.0, 0xA9/255.0, 0xBE/255.0) # "#FFA9BE"
     Graphite     : new BABYLON.Color3(0x1C/255.0, 0x1B/255.0, 0x21/255.0) # "#1C1B21"
 
+h_aligns = 
+    center: BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER
+    left  : BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
+    right : BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT
 
+v_aligns = 
+    center: BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER
+    top   : BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP
+    bottom: BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM
+    
 #  STARTUP CONFIG
 
-cfg = 
+default_cfg = ->
     scale: 1
-    background: true
+
     scene:    
         "background": true
         "background color": "Digi_Violet"
@@ -48,14 +57,20 @@ cfg =
         "width" : 1.0
         "height": 1.0
 
-    "landscape glyphs": true
+        "h1"    : 2.0
+        "h2"    :-2.0
+        "h3"    : 0.0
+        "h4"    : 0.0
+        
+
+    "landscape glp": true
     landscape_glyph_settings:
         seed :  0
         count: 50
         min  : 0.5
         max  : 1.5
     
-    "scene glyphs": true
+    "scene glp": true
     scene_glyph_settings:
         seed:   0
         count: 20
@@ -68,13 +83,22 @@ cfg =
         x:   1.5
         y:   0.0
 
-    
     logo: true
     logo_settings: 
         "color"  : "White" 
         "h align": "left"
         "v align": "top"
         "padding": 0
+
+cfg = JSON.parse localStorage?.getItem "cfg"
+cfg?= do default_cfg
+cfg_controls = 
+    save: ->
+        localStorage.setItem "cfg", JSON.stringify cfg
+    reset: ->
+        cfg = do default_cfg
+        do cfg_controls.save
+        do location.reload
 
 MAX_GLYPHS = 300
 
@@ -107,6 +131,9 @@ create_landscape = (scene)->
     # normal_mat.backFaceCulling = false
 
     generate_paths  =(seed=0)->
+
+        ls = cfg.landscape_settings
+
         Math.seedrandom?(seed)
 
         h = (x,y,dx=0,dy=0)->
@@ -119,21 +146,27 @@ create_landscape = (scene)->
         dy1 = rnd()*4.0
         dx2 = rnd()*4.0
         dy2 = rnd()*4.0
-        dx3 = rnd()*5.0
-        dy3 = rnd()*5.0
+        dx3 = rnd()*4.0
+        dy3 = rnd()*4.0
+        dx4 = rnd()*4.0
+        dy4 = rnd()*4.0
+        dx5 = rnd()*5.0
+        dy5 = rnd()*5.0
         paths = []            
         for x in [-4..4] by step
             path = []
             for y in [-4..4] by step
-                z = h(  x,  y, dx1, dy1)*2 -
-                    h(  x,  y, dx2, dy2)*2 +
-                    Math.sin(x*2+dx3)/4 - Math.cos(y*4+dy3)/6
+                z = h(  x,  y, dx1, dy1) * ls.h1 +
+                    h(  x,  y, dx2, dy2) * ls.h2 +
+                    h(  x,  y, dx3, dy3) * ls.h3 +
+                    h(  x,  y, dx4, dy4) * ls.h4 +
+                    Math.sin(x*2+dx5)/4 - Math.cos(y*4+dy5)/6
 
                 path.push new BABYLON.Vector3(x,z,y)
             paths.push path
         paths
-
-    paths = generate_paths()
+    
+    paths   = generate_paths()
     paths_t = generate_paths()  
     landscape = new BABYLON.Mesh.CreateRibbon("ribbon", paths, false, false, null, scene,true);
     landscape.material = landscape_mat;
@@ -147,13 +180,27 @@ create_landscape = (scene)->
     #             paths[i][j].y+= (paths_t[i][j].y-paths[i][j].y)/50.0
     #     landscape = BABYLON.Mesh.CreateRibbon(null, paths, null, null, null, null, null, null, landscape);
     
-    landscape.rebuild = (seed)->
-        paths = generate_paths seed
+    landscape.rebuild = ()->
+        paths = generate_paths cfg.landscape_settings.seed
         BABYLON.Mesh.CreateRibbon(null, paths, null, null, null, null, null, null, landscape);
         dirty = true
 
     landscape.parent = BABYLON.Mesh.CreateBox "landscape parent", 4.0, scene 
     landscape.parent.isVisible = false
+    
+    # initial values
+    landscape.update = ->
+        landscape.isVisible         = cfg.landscape
+        landscape.rotation.y        = cfg.landscape_settings["rotation y"]
+        landscape.scaling.y         = cfg.landscape_settings["height"]
+        landscape.parent.rotation.x = cfg.landscape_settings["rotation x"]
+        landscape.parent.position.x = cfg.landscape_settings["x"]
+        landscape.parent.position.y = cfg.landscape_settings["y"]
+        landscape.parent.position.z = cfg.landscape_settings["z"]
+        landscape.parent.scaling.x  = landscape.parent.scaling.y = landscape.parent.scaling.z = cfg.landscape_settings["scale"]
+        dirty = true
+    
+    do landscape.update
 
     landscape
 
@@ -163,34 +210,35 @@ generate_particles = (scene, landscape, img)->
     particles.emitter = landscape
     particles.minEmitBox = new BABYLON.Vector3(-4, 0,-4)
     particles.maxEmitBox = new BABYLON.Vector3( 4, 0, 4)
-    # // Colors of all particles
+    # Colors of all particles
     particles.color1 = colors.White
     particles.color2 = colors.Lemon
     particles.colorDead = colors.Black
-    # // Size of each particle (random between...
+    # Size of each particle (random between...
     particles.minSize = 0.05;
     particles.maxSize = 0.10;
-    # // Life time of each particle (random between...
+    # Life time of each particle (random between...
     particles.minLifeTime = 0.3;
     particles.maxLifeTime = 1.5;
-    # // Emission rate
+    # Emission rate
     particles.emitRate = 10;
-    # // Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
+    # Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
     # particles.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD
-    # // Set the gravity of all particles
+    # Set the gravity of all particles
     particles.gravity = new BABYLON.Vector3(0, -5, 0);
-    # // Direction of each particle after it has been emitted
+    # Direction of each particle after it has been emitted
     particles.direction1 = new BABYLON.Vector3(0, 5, 0);
     particles.direction2 = new BABYLON.Vector3(0, 5, 0);
-    # // Angular speed, in radians
+    # Angular speed, in radians
     # particles.minAngularSpeed = 0;
     # particles.maxAngularSpeed = Math.PI;
-    # // Speed
+    # Speed
     particles.minEmitPower = 0.5;
     particles.maxEmitPower = 1.0;
     particles.updateSpeed = 0.005;
-    # // Start the particle system
+    # Start the particle system
     particles.start();
+
 
 generate_particles_scene = (scene, landscape, img)->
     particles = new BABYLON.ParticleSystem("particles", 50, scene);
@@ -198,33 +246,33 @@ generate_particles_scene = (scene, landscape, img)->
     particles.emitter = landscape
     particles.minEmitBox = new BABYLON.Vector3(-8,-4,-8)
     particles.maxEmitBox = new BABYLON.Vector3( 8, 4, 8)
-    # // Colors of all particles
+    # Colors of all particles
     particles.color1 = colors.White
     particles.color2 = colors.Lemon
     particles.colorDead = colors.Black
-    # // Size of each particle (random between...
+    # Size of each particle (random between...
     particles.minSize = 0.1
     particles.maxSize = 0.5
-    # // Life time of each particle (random between...
+    # Life time of each particle (random between...
     particles.minLifeTime = 1.0;
     particles.maxLifeTime = 2.5;
-    # // Emission rate
+    # Emission rate
     particles.emitRate = 4;
-    # // Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
+    # Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
     # particles.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD
-    # // Set the gravity of all particles
+    # Set the gravity of all particles
     particles.gravity = new BABYLON.Vector3(0, -1, 0);
-    # // Direction of each particle after it has been emitted
+    # Direction of each particle after it has been emitted
     particles.direction1 = new BABYLON.Vector3(0, 1, 0);
     particles.direction2 = new BABYLON.Vector3(0, 1, 0);
-    # // Angular speed, in radians
+    # Angular speed, in radians
     # particles.minAngularSpeed = 0;
     # particles.maxAngularSpeed = Math.PI;
-    # // Speed
+    # Speed
     particles.minEmitPower = 0.5;
     particles.maxEmitPower = 1.0;
     particles.updateSpeed = 0.005;
-    # // Start the particle system
+    # Start the particle system
     particles.start();
 
 
@@ -341,6 +389,20 @@ generate_glyphs = (scene, parent, count)->
 
     root
 
+# LOGO
+
+generate_logo = ->
+    ls = cfg.logo_settings
+    advanced_txt = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+    logo = new BABYLON.GUI.Image "logo", "logo_#{ls.color}.png"
+    advanced_txt.addControl logo
+    logo.autoScale = true
+    logo.horizontalAlignment = h_aligns[ls["h align"]]
+    logo.verticalAlignment   = v_aligns[ls["v align"]]
+    logo.isVisible = cfg.logo
+
+    logo
+
 # Title
 generate_title = (scene, camera)->
     
@@ -348,7 +410,6 @@ generate_title = (scene, camera)->
     txt = new BABYLON.DynamicTexture("title texture", 2048, scene, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE)
     txt.hasAlpha = true
     
-
     mat = new BABYLON.StandardMaterial "material", scene, true
     # mat.diffuseTexture  = txt
     mat.opacityTexture  = txt
@@ -359,8 +420,8 @@ generate_title = (scene, camera)->
     root.isVisible = false
     
     params =
-        width: 5.0
-        height:5.0
+        width:  5.0
+        height: 5.0
         updatable: true
     root.position.z = -5.0
     root.title = title = new BABYLON.MeshBuilder.CreatePlane "title", params, scene
@@ -381,6 +442,11 @@ generate_title = (scene, camera)->
            ctx.fillText t, 0, i*size
         txt.update()
         dirty = true
+    
+    # initial values
+    title.isVisible = cfg.title
+    root.position.x = cfg.title_settings.x
+    root.position.y = cfg.title_settings.y
 
     root
 
@@ -391,6 +457,7 @@ render_png = (render)->
     # BABYLON.Tools.DumpFramebuffer(render.width, render.width, engine, on_success,"image/png")
     # BABYLON.Tools.CreateScreenshot(engine, camera, {width:render.width}, on_success, "image/jpeg")
     BABYLON.Tools.CreateScreenshotUsingRenderTarget(engine, camera, {wdith: render.width, height: render.width}, on_success, 1)
+
 
 
 # START
@@ -417,70 +484,67 @@ init = ->
     window.addEventListener 'resize', -> engine.resize(); dirty = true
     setInterval (=>dirty = true), 2000
 
-init_gui = ->
 
+
+
+init_gui = ->
 
     gui = new dat.GUI
     gui.add(cfg, "scale", 0.1, 4.0).onFinishChange (val)->engine.setHardwareScalingLevel 1.0/val; dirty = true
-    gui.add(cfg.scene, "background").onChange (val)->
-        scene.clearColor = if val then colors[cfg.scene["background color"]] else new BABYLON.Color4(0,0,0,0.00000000001);
+    update_background = ->
+        scene.clearColor = cfg.scene.background && colors[cfg.scene["background color"]] || new BABYLON.Color4(0,0,0,0.00000000001);
         dirty = true
+    do update_background
+    gui.add(cfg.scene, "background").onChange -> do update_background
+    gui.add(cfg.scene, "background color", color_names).onFinishChange -> do update_background
 
-    gui.add(cfg.scene, "background color", color_names).onFinishChange (name)->scene.clearColor = colors[name]; dirty = true
-        
 
     # TITLE
 
     title = generate_title scene
-    title.position.x = 1.5
     gui.add(cfg, "title").onChange (val)->title.title.isVisible = val; dirty = true
     f = gui.addFolder "title settings"
     ts = cfg.title_settings
     title.update ts.text
+    title.position.x = 1.5
     f.add(ts, "x", -4.0, 4.0, 0.1).onChange (val)->title.position.x = val; dirty = true
     f.add(ts, "y", -4.0, 4.0, 0.1).onChange (val)->title.position.y = val; dirty = true
-    f.add(ts, "text").onChange (txt)->title.update txt
+    f.add(ts, "text"             ).onChange (txt)->title.update txt
 
 
     # LANDSCAPE
 
     landscape = create_landscape scene
-    update_landscape = ->
-        landscape.rotation.y = cfg.landscape_settings["rotation y"]
-        landscape.scaling.y  = cfg.landscape_settings["height"]
-        
-        landscape.parent.rotation.x = cfg.landscape_settings["rotation x"]
-        landscape.parent.position.x = cfg.landscape_settings["x"]
-        landscape.parent.position.y = cfg.landscape_settings["y"]
-        landscape.parent.position.z = cfg.landscape_settings["z"]
-        landscape.parent.scaling.x  = landscape.parent.scaling.y = landscape.parent.scaling.z = cfg.landscape_settings["scale"]
-        dirty = true
 
-    update_landscape()
     gui.add(cfg, "landscape").onChange (val)->landscape.isVisible = val; dirty = true
     f = gui.addFolder "landscape settings"
     ls = cfg.landscape_settings
-    f.add(ls, "seed"      , 0       , 10000       ).onChange (val)-> landscape.rebuild val
-    f.add(ls, "height", 0.01, 4, 0.01             ).onChange (val)-> update_landscape()
-    f.add(ls, "rotation y", -Math.PI, Math.PI,0.01).onChange (val)-> update_landscape()
-    f.add(ls, "rotation x", -Math.PI, Math.PI,0.01).onChange (val)-> update_landscape()
-    f.add(ls, "x"     ,   -4, 4, 0.01             ).onChange (val)-> update_landscape()
-    f.add(ls, "y"     ,   -4, 4, 0.01             ).onChange (val)-> update_landscape()
-    f.add(ls, "z"     ,   -4, 4, 0.01             ).onChange (val)-> update_landscape()
-    f.add(ls, "scale" , 0.25, 4, 0.01             ).onChange (val)-> update_landscape()
-   
+    f.add(ls, "seed"      , 0       , 10000        ).onChange (val)-> do landscape.rebuild
+    f.add(ls, "height", 0.01, 4, 0.01              ).onChange (val)-> do landscape.update
+    f.add(ls, "rotation y", -Math.PI, Math.PI, 0.01).onChange (val)-> do landscape.update
+    f.add(ls, "rotation x", -Math.PI, Math.PI, 0.01).onChange (val)-> do landscape.update
+    f.add(ls, "x"     ,   -4, 4, 0.01              ).onChange (val)-> do landscape.update
+    f.add(ls, "y"     ,   -4, 4, 0.01              ).onChange (val)-> do landscape.update
+    f.add(ls, "z"     ,   -4, 4, 0.01              ).onChange (val)-> do landscape.update
+    f.add(ls, "scale" , 0.25, 4, 0.01              ).onChange (val)-> do landscape.update
+    f.add(ls, "h1" ,-3.0, 3.0, 0.01                ).onChange (val)-> do landscape.rebuild
+    f.add(ls, "h2" ,-3.0, 3.0, 0.01                ).onChange (val)-> do landscape.rebuild
+    f.add(ls, "h3" ,-3.0, 3.0, 0.01                ).onChange (val)-> do landscape.rebuild
+    f.add(ls, "h4" ,-3.0, 3.0, 0.01                ).onChange (val)-> do landscape.rebuild
+
 
     # LANDSCAPE GLYPHS
 
     landscape_glyphs = generate_glyphs scene, landscape, cfg.landscape_glyph_settings.count   
     lgs = cfg.landscape_glyph_settings
     landscape_glyphs.update_glyphs_pos lgs
-    gui.add(cfg, "landscape glyphs").onChange (val)->landscape_glyphs.visibility lgs, val; dirty = true
+    landscape_glyphs.visibility lgs, cfg["landscape glp"]
+    gui.add(cfg, "landscape glp").onChange (val)->landscape_glyphs.visibility lgs, val; dirty = true
     f = gui.addFolder "landscape glyph settings"
-    f.add(lgs, "seed" , 0, 1000, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
+    f.add(lgs, "seed" , 0, 1000, 1         ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
     f.add(lgs, "count", 0,  MAX_GLYPHS, 1  ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
-    f.add(lgs, "min", 0.1, 3.0, 0.01).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
-    f.add(lgs, "max", 0.1, 3.0, 0.01).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
+    f.add(lgs, "min", 0.1, 3.0, 0.01       ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
+    f.add(lgs, "max", 0.1, 3.0, 0.01       ).onChange (val)->landscape_glyphs.update_glyphs_pos lgs
 
 
     # SCENE GLYPH
@@ -490,38 +554,32 @@ init_gui = ->
     scene_glyphs.position.z = -2.0
     sgs = cfg.scene_glyph_settings
     scene_glyphs.update_glyphs_pos sgs
+    scene_glyphs.visibility sgs, cfg["scene glp"]
     scene_glyphs.scaling.x = 4.0
-    gui.add(cfg, "scene glyphs").onChange (val)->scene_glyphs.visibility sgs, val; dirty = true
+    gui.add(cfg, "scene glp").onChange (val)->scene_glyphs.visibility sgs, val; dirty = true
     f = gui.addFolder "scene glyph settings"
-    f.add(sgs, "seed" , 0, 1000,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
+    f.add(sgs, "seed" , 0, 1000,   1       ).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
     f.add(sgs, "count", 0,  MAX_GLYPHS,   1).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
-    f.add(sgs, "min", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
-    f.add(sgs, "max", 0.1, 3.0, 0.01).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
+    f.add(sgs, "min", 0.1, 3.0, 0.01       ).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
+    f.add(sgs, "max", 0.1, 3.0, 0.01       ).onChange (val)-> scene_glyphs.update_glyphs_pos sgs
     
-
     # LOGO
-    
-    h_aligns = 
-        center: BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER
-        left  : BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-        right : BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT
- 
-    v_aligns = 
-        center: BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER
-        top   : BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP
-        bottom: BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM
         
-    advanced_txt = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
-    logo = new BABYLON.GUI.Image "logo", "logo_#{cfg.logo_settings.color}.png"
-    advanced_txt.addControl logo
-    logo.autoScale = true
-    logo.horizontalAlignment = h_aligns[cfg.logo_settings["h align"]]
-    logo.verticalAlignment   = v_aligns[cfg.logo_settings["v align"]]
+    ls = cfg.logo_settings
+    logo = do generate_logo
     gui.add(cfg, "logo").onChange (val)->logo.isVisible = val; dirty = true
     f = gui.addFolder "logo settings"
-    f.add(cfg.logo_settings, "color"  , color_names).onChange (val)-> logo.source = "logo_#{val}.png"
-    f.add(cfg.logo_settings, "h align", ["left", "center",  "right"]).onChange (val)->logo.horizontalAlignment = h_aligns[val]
-    f.add(cfg.logo_settings, "v align", ["top" , "center", "bottom"]).onChange (val)->logo.verticalAlignment   = v_aligns[val]
+    f.add(ls, "color"  , color_names                 ).onChange (val)-> logo.source = "logo_#{val}.png"        ; dirty = true
+    f.add(ls, "h align", ["left", "center",  "right"]).onChange (val)->logo.horizontalAlignment = h_aligns[val]; dirty = true
+    f.add(ls, "v align", ["top" , "center", "bottom"]).onChange (val)->logo.verticalAlignment   = v_aligns[val]; dirty = true
+
+    # SAVE
+    
+    gui.add cfg_controls, "save"
+    gui.add cfg_controls, "reset"
+
+    # Rerender all
+    dirty = true
 
 
 $ ->
